@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>任务计划列表</title>
+    <link rel="stylesheet" href="css/todos.css">
+    <script src="js/vue.js"></script>
+</head>
+<body>
+    <div class="page-top">
+        <div class="page-content">
+            <h2>任务计划列表</h2>
+        </div>
+    </div>
+    <div class="main">
+        <h3 class="big-title">添加任务：</h3>
+        <input class="task-input" type="text" v-on:keyup.enter="addTodo" v-model="todo"/>
+        <ul class="task-count"  v-show="list.length">
+            <li>	{{ noCheckedLength }}个任务未完成</li>
+            <li class="action">
+                <a href="#all" :class="{active:visibility==='all'}">所有任务</a>
+                <a href="#unfinished" :class="{active:visibility==='unfinished'}">未完成的任务</a>
+                <a href="#finished" :class="{active:visibility==='finished'}">完成的任务</a>
+            </li>
+        </ul>
+        <h3 class="big-title">任务列表：</h3>
+        <div class="tasks">
+            <span class="no-task-tip" v-show="!list.length">还没有添加任何任务</span>
+            <ul class="todo-list">
+                <li class="todo" v-bind:class="{completed:item.isChecked,editing:item==edtorTodos}" v-for="item in filteredList">
+                    <div class="view">
+                        <input class="toggle" type="checkbox" v-model="item.isChecked" />
+                        <label @dblclick="edtorTodo(item)">{{item.title}}</label>
+                        <button class="destroy" @click="deleteTodo(item)"></button>
+                    </div>
+                    <input 
+                    	    v-foucs="edtorTodos===item" 
+                    	    @blur="edtorTodoed(item)" 
+                    	    @keyup.13="edtorTodoed(item)" 
+                    	    @keyup.esc="cancelTodo(item)" 
+                    	    type="text" 
+                    	    class="edit" 
+                    	    v-model="item.title" 
+                    	/>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <script>
+    	    //存取localStorage中数据
+    	    var store = {
+    	    	    save(key,value){
+    	    	    	    localStorage.setItem(key,JSON.stringify(value))
+    	    	    },
+    	    	    fetch(key){
+    	    	    	    return JSON.parse(localStorage.getItem(key)) || [];
+    	    	    }
+    	    }
+    	    var list = store.fetch("cheng-class");
+    	    
+    	    var vm = new Vue({
+    	    	    el:".main",
+    	    	    data:{
+    	    	    	    list:list,
+    	    	    	    todo:"",
+    	    	    	    edtorTodos:"",//记录正在编辑的数据
+    	    	    	    beforeTitle:"",//记录正在编辑数据的title
+    	    	    	    visibility:"all"//哈希筛选数据
+    	    	    },
+    	    	    //监听器
+    	    	    watch:{
+    	    	    	    //监控list，当发生变化时执行，
+    	    	      	//浅监控，内部数据变化不触发
+//  	    	    	    list:function(){
+//  	    	    	    	    store.save("cheng-class",this.list);
+//  	    	    	    }
+                //深度监控
+                list:{
+                	    handler:function(){
+                	    	    store.save("cheng-class",this.list);
+                	    },
+                	    deep:true
+                }
+    	    	    },
+    	    	    //计算属性
+    	    	    computed:{
+    	    	    	    noCheckedLength:function(){
+    	    	    	    	    return this.list.filter(function(item){
+            	    	        return !item.isChecked
+            	        }).length
+    	    	    	    },
+    	    	    	    //数据过滤
+    	    	    	    filteredList:function(){
+    	    	    	    	    //过滤时有三种情况 all,finished,unfinished
+    	    	    	    	    var filter = {
+    	    	    	    	    	    all:function(list){
+    	    	    	    	    	    	    return list;
+    	    	    	    	    	    },
+    	    	    	    	    	    finished:function(list){
+    	    	    	    	    	    	    return list.filter(function(item){
+    	    	    	    	    	    	    	    return item.isChecked;
+    	    	    	    	    	    	    })
+    	    	    	    	    	    },
+    	    	    	    	    	    unfinished:function(list){
+    	    	    	    	    	    	     return list.filter(function(item){
+    	    	    	    	    	    	    	    return !item.isChecked;
+    	    	    	    	    	    	    })
+    	    	    	    	    	    }
+    	    	    	    	    }
+    	    	    	    	    return filter[this.visibility] ? filter[this.visibility](list) : list;
+    	    	    	    }
+    	    	    },
+    	    	    //方法
+    	    	    methods:{
+    	    	      	//添加任务
+    	    	    	    addTodo(ev){
+    	    	    	    	    	this.list.push({
+    	    	    	    	    	    	"title":this.todo,
+    	    	    	    	    	    	"isChecked":false
+    	    	    	    	    	});
+    	    	    	    	    	this.todo = "";
+    	    	    	    },
+    	    	    	    //删除
+    	    	    	    deleteTodo(todo){
+    	    	    	    	    var index = this.list.indexOf(todo);
+    	    	    	    	    this.list.splice(index,1);
+    	    	    	    },
+    	    	    	    //编辑
+    	    	    	    edtorTodo(todo){
+    	    	    	    	    //编辑任务前记录title,方便在取消编辑时恢复数据
+    	    	    	    	    this.beforeTitle = todo.title;
+    	    	    	    	    this.edtorTodos = todo;
+    	    	    	    },
+    	    	    	    //失去焦点，编辑任务成功
+    	    	    	    edtorTodoed(todo){
+    	    	    	    	    this.edtorTodos = "";
+    	    	    	    },
+    	    	    	    //取消编辑
+    	    	    	    cancelTodo(todo){
+    	    	    	    	    //恢复数据
+    	    	    	    	    todo.title = this.beforeTitle;
+    	    	    	    	    this.beforeTitle = "";
+    	    	    	    	    //显示div隐藏input
+    	    	    	    	    this.edtorTodos = "";
+    	    	    	    }
+    	    	    },
+    	    	    //自定义指令
+    	    	    directives:{
+    	    	    	    "foucs":{
+    	    	    	    	    update(el,binding){
+    	    	    	    	    	    if(binding.value){
+    	    	    	    	    	    	    el.focus();
+    	    	    	    	    	    }
+    	    	    	    	    }
+    	    	    	    }
+    	    	    }
+    	    })
+    	    
+    	    //根据哈希值筛选数据
+    	    function watchHashChange(){
+    	    	    var hash = window.location.hash.slice(1);
+    	    	    console.log(hash);
+    	    	    vm.visibility = hash;
+    	    }
+    	    
+    	    watchHashChange();
+    	    //监控hash
+    	    window.addEventListener("hashchange",watchHashChange)
+    	
+    </script>
+</body>
+</html>
